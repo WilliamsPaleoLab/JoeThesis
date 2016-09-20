@@ -15,6 +15,10 @@ import sys
 import requests
 import netCDF4
 import numpy
+import matplotlib.pyplot as plt
+def find_nearest(array,value):
+    idx = numpy.argmin(numpy.abs(array - value))
+    return array[idx]
 
 def getMonthlyValuesFromNCFile(ncfile, variable, yearBP, lat, lng):
     ### get the all the values we have for a variable type and latitude, longitude, time
@@ -24,12 +28,10 @@ def getMonthlyValuesFromNCFile(ncfile, variable, yearBP, lat, lng):
     lat_array = numpy.array(ncfile.variables['lat'])
     time_array = numpy.array(ncfile.variables['time'])
     time_array = numpy.multiply(time_array, -10) #convert from decades to year bp
-
     # find the nearest point for latitude and longitude
     nearest_lat = find_nearest(lat_array, lat)
     nearest_lng = find_nearest(lon_array, lng)
     nearest_time = find_nearest(time_array, yearBP)
-
     # ## find the index at those points in the ncdf file
     lat_idx = numpy.where(lat_array == nearest_lat)[0][0]
     lon_idx = numpy.where(lon_array == nearest_lng)[0][0]
@@ -43,8 +45,8 @@ taxonSearchKey = sys.argv[1] ## to search Neotoma --> gets from command line
 
 neotomaLocationsFile = "NeotomaLocations.csv"
 finsihedFile = sys.argv[2] ## where should I put the final file? get from command line
-prcpNCDF = "W://Lab_Climate_Data/ModelData/TraCE/CCSM3/22k_monthly_avg/nc/ccsm3_22-0k_prcp.nc
-tempNCDF = "W://Lab_Climate_Data/ModelData/TraCE/CCSM3/22k_monthly_avg/nc/ccsm3_22-0k_temp.nc",
+prcpNCDF = "W://Lab_Climate_Data/ModelData/TraCE/CCSM3/22k_monthly_avg/nc/ccsm3_22-0k_prcp.nc"
+tempNCDF = "W://Lab_Climate_Data/ModelData/TraCE/CCSM3/22k_monthly_avg/nc/ccsm3_22-0k_temp.nc"
 prcpVar = "prcp"
 tminVar = "tmin"
 tmaxVar = "tmax"
@@ -91,7 +93,7 @@ writer.writeheader()
 
 ## for comparison within the counts
 testString = ''.join(ch for ch in taxonSearchKey if ch.isalnum()) ## this is the searchstring without anything else
-testString = taxonSearchKey.upper()
+testString = testString.upper()
 
 
 ### download from Neotoma
@@ -185,7 +187,7 @@ for dataset in datasets:
         totalInLevel = 0
         for sd in sampledata: ## these are the actual counts
             taxon = sd['TaxonName'].upper()
-            value = sd['Value']
+            value = float(sd['Value'])
             element = sd['VariableElement']
             if element == 'pollen':
                 levelTotal += value
@@ -219,8 +221,9 @@ for dataset in datasets:
                 'countedInLevel' : countedInLevel,
                 'totalInLevel': totalInLevel
             }
-            writer.writerow(output)
-            it += 1
+            if taxonValue > 0:
+                writer.writerow(output)
+                it += 1
         except Exception as e:
             print str(e)
             pass
@@ -229,7 +232,7 @@ intermediateFile.close()## close write mode
 intermediateFile = open(neotomaLocationsFile, 'r') # open again in read mode
 finalFile = open(finsihedFile, 'w')# this is where the climate data goes
 reader = csv.reader(intermediateFile) ## read the locations from here
-writer = csv.writer(outf, lineterminator='\n') ## write to final file with csv writer
+writer = csv.writer(finalFile, lineterminator='\n') ## write to final file with csv writer
 
 ## add the climate keys to the final file
 newHeader = outputkeys + ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12',
@@ -238,35 +241,42 @@ newHeader = outputkeys + ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 
 writer.writerow(newHeader)
 i = 0
 for row in reader:
+    print "Processed", i, "records::", (it - i), "remaining"
     try:
-        lat = float(row[1])
-        lon = float(row[2])
-        alt = float(row[3])
-        age = row[7]
-        ageOld = row[8]
-        ageYoung = row[9]
-        ## make age the average of old and young if its missing
-        if age == '':
-            try:
-                age = (float(ageOld) + float(ageYoung)) / 2
-            except Exception as e:
-                age = 0 ##modern
-        age = float(age)
-        ## get Precip
-        p = getFromNCFile.getMonthlyValuesFromNCFile(prcpNCDF, prcpVar, age, lat, lon)
-        P = list(p)
-        tmin = getFromNCFile.getMonthlyValuesFromNCFile(tempNCDF, tminVar, age, lat, lon)
-        tmin = list(tmin)
-        tmax = getFromNCFile.getMonthlyValuesFromNCFile(tempNCDF, tmaxVar, age, lat, lon)
-        tmax = list(tmax)
-        clim = p + tmin + tmax
-        output = row + clim
-        writer.writerow(output)
-    except Exception as e:
+        if i != 0:
+            ## this is the header
+            lat = float(row[1])
+            lon = float(row[2])
+            alt = float(row[3])
+            age = row[7]
+            ageOld = row[8]
+            ageYoung = row[9]
+            ## make age the average of old and young if its missing
+            if age == '':
+                try:
+                    age = (float(ageOld) + float(ageYoung)) / 2
+                except Exception as e:
+                    age = 0 ##modern
+            age = float(age)
+            ## get Precip
+            p = getMonthlyValuesFromNCFile(prcpNCDF, prcpVar, age, lat, lon)
+            P = list(p)
+            tmin = getMonthlyValuesFromNCFile(tempNCDF, tminVar, age, lat, lon)
+            tmin = list(tmin)
+            tmax = getMonthlyValuesFromNCFile(tempNCDF, tmaxVar, age, lat, lon)
+            tmax = list(tmax)
+            row = list(row)
+            ## data types are being stupid
+            for item in p:
+                row.append(float(item))
+            for item in tmin:
+                row.append(float(item))
+            for item in tmax:
+                row.append(float(item))
+            writer.writerow(row)
+    except NameError as e:
         ## pass any errors
         print str(e)
         continue
-    if i % 100 == 0:
-        print "Done: ", (i/it) * 100, "records"
     i += 1
 finalFile.close()
