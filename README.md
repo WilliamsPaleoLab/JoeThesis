@@ -18,3 +18,7 @@ Phenological mismatch of paleovegetation.
 8.  Open the csv file ```[[Name_of_the_file_you_want.csv]]``` in excel or R when it's finished. 
 
 NB: ```NeotomaLocations.csv``` is an intermediate file and only has locations and times, without climate. It gets overwritten each time the script is called.
+
+
+Example:
+``` python neotoma_to_space_time_climate.py Quercus* myQuercusFile.csv```
