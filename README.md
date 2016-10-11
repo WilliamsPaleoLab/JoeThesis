@@ -1,13 +1,12 @@
-# JoeThesis
-Phenological mismatch of paleovegetation.
+# Phenological mismatch of paleovegetation.
 
+# Contributors
 
+Joseph Bevington - University of Wisconsin - Madison
 
+# How to use this Repository
 
-
-
-
-#### Running the Neotoma/Climate Script
+## Running the Neotoma/Climate Script
 1.  Go to the Williams Lab Computer 
 2.  Open a command shell py clicking the windows icon in the lower left and typing <kbd>cmd</kbd> + <kbd>Enter</kbd>.
 3.  Change directories into the Github folder where the code lives. ```cd documents/github/JoeThesis```
